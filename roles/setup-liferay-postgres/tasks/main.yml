@@ -1,14 +1,14 @@
 
-#TODO allow at least for a custom port, double-check with debops.postgresql..
+#TODO allow at least for a custom port
 
 - name: test if liferay was installed
   stat:
-    path: '{{ remotedirs.service }}/{{ app__liferay__name }}/portal-ext.properties'
+    path: '{{ liferay__config }}'
   register: liferay_config
 
 - name: fail if the installation is missing
   fail:
-    msg: "Liferay was not installed correctly on {{ remotedirs.service }}/{{ app__liferay__name }}"
+    msg: "Liferay was not installed correctly on {{ app__liferay__base }}"
   when: liferay_config.stat.isreg is not defined or not liferay_config.stat.isreg
 
 - name: Gather the passwords file from the host itself.
@@ -37,7 +37,7 @@
 - name: connect liferay to the newly created db
   blockinfile:
     create: yes
-    dest: "{{ remotedirs.service }}/{{ app__liferay__pkg }}/portal-ext.properties"
+    dest: "{{ liferay__config }}"
     mode: 0600
     owner: "{{ app__liferay__user }}"
     group: "{{ app__liferay__group }}"
@@ -51,7 +51,7 @@
 - name: prepare an upgrade config, just in case
   blockinfile:
     create: yes
-    dest: "{{ remotedirs.service }}/{{ app__liferay__pkg }}//tools/portal-tools-db-upgrade-client/portal-upgrade-database.properties"
+    dest: "{{ app__liferay__base }}/tools/portal-tools-db-upgrade-client/portal-upgrade-database.properties"
     mode: 0600
     owner: "{{ app__liferay__user }}"
     group: "{{ app__liferay__group }}"

@@ -1,5 +1,5 @@
 ---
 dependencies:
   - deploy-account-store
-  - { role: add-credentials-to-store, target_file: '{{ app__liferay__config }}', credentials_key: '{{ liferay_db_credentails_key }}', credentials_name: '{{ liferay_db_credentails_name }}', password_chars: "ascii,digits,.-_~+=" }
+  - { role: add-credentials-to-store, target_file: '{{ liferay__config }}', credentials_key: '{{ liferay_db_credentails_key }}', credentials_name: '{{ liferay_db_credentails_name }}', password_chars: "ascii,digits,.-_~+=" }
 

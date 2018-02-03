@@ -1,6 +1,9 @@
 ---
+liferay__base: '{{ remotedirs.service }}/{{ app__liferay__pkg }}'
+dd__liferay__config: '{{ liferay__base }}/portal-ext.properties'
+liferay__config: '{{ app__liferay__config | d(dd__liferay__config) }}'
+
 liferay_db_credentails_key: '{{ app__liferay__db_credentials_key | d(default__liferay_db_credentails_key) }}'
 liferay_db_credentails_name: '{{ app__liferay__db_credentials_name | d(default__liferay_db_credentails_name) }}'
-
 
 postgresql__edit_db: '{{ app__postgresql__edit_db | d(default__postgresql__edit_db) }}'
