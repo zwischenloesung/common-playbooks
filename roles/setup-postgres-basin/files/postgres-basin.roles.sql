@@ -44,9 +44,9 @@ END $$;
 
 -- revoke permissions
 REVOKE ALL ON SCHEMA public FROM
-    omni_reader,
-    omni_creator,
-    omni_editor,
+--    omni_reader,
+--    omni_creator,
+--    omni_editor,
     omni_supplier,
     omni_consumer;
 
