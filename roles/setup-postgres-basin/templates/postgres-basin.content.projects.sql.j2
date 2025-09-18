@@ -69,6 +69,7 @@ BEGIN
 {% else %}
         NULL,
 {% endif %}
+        project_uuid,
 {% if st.contentencoding is defined and st.contentencoding|length > 0 %}
         $cont${{ st.contentencoding }}$cont$,
 {% else %}
