@@ -213,6 +213,7 @@ CREATE TABLE IF NOT EXISTS sources (
     uri TEXT DEFAULT NULL,
     uuid UUID DEFAULT NULL,
     parentid INTEGER DEFAULT NULL,
+    projectid INTEGER REFERENCES projects(id) NOT NULL,
     version INTEGER NOT NULL -- see shadow
 );
 

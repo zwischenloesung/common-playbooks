@@ -376,7 +376,7 @@ CREATE OR REPLACE FUNCTION perform_insert_sourcetypes(
     in_devicetype TEXT DEFAULT NULL,
     in_realmname TEXT DEFAULT NULL,
     in_realmuuid UUID DEFAULT NULL,
-    in_project_uuid DEFAULT NULL,
+    in_project_uuid UUID DEFAULT NULL,
     in_contentencoding VARCHAR(32) DEFAULT NULL,
     in_contenttype VARCHAR(32) DEFAULT NULL,
     in_contentrdfxtypes TEXT DEFAULT NULL,
@@ -628,8 +628,8 @@ BEGIN
 
     IF source_id IS NULL THEN
         -- Create new anchor
-        INSERT INTO sources(version, uri, name, uuid)
-        VALUES (0, uri_, in_name, in_uuid)
+        INSERT INTO sources(version, uri, name, uuid, projectid)
+        VALUES (0, uri_, in_name, in_uuid, project_id)
         RETURNING id INTO source_id;
 
         latest_version := 0;
@@ -644,7 +644,8 @@ BEGIN
                 version = latest_version,
                 uri = uri_,
                 name = in_name,
-                uuid = in_uuid
+                uuid = in_uuid,
+                projectid = project_id
         WHERE id = source_id;
     END IF;
 
