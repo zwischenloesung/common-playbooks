@@ -57,8 +57,8 @@
     mode: "0640"
     owner: '{{ postgresql_user }}'
     group: '{{ postgresql_group }}'
-  when:
-    * 'app.postgresql.pg_cron' in group_names
+  when: >
+    'app.postgresql.pg_cron' in group_names
 
 - name: "Restart PostgreSQL"
   ansible.builtin.command: >
@@ -125,9 +125,9 @@
     psql -d {{ db_name }} -f {{ schema_files_path ~ "/" ~ schema_files.cron }}
   become: yes
   become_user: "{{ postgresql_user }}"
-  when:
-    * 'app.postgresql.pg_cron' in group_names
-    * schema_files_auto_enable | selectattr('name', 'equalto', 'cron') | map(attribute='enabled') | first | d(false)
+  when: >
+    'app.postgresql.pg_cron' in group_names and
+    schema_files_auto_enable | selectattr('name', 'equalto', 'cron') | map(attribute='enabled') | first | d(false)
 
 - name: "Insert the version info"
   ansible.builtin.command: >
