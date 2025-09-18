@@ -891,6 +891,7 @@ BEGIN
     END IF;
     -- Create a lock file to block new processes, resp. quit if another process is running..
     PERFORM pg_advisory_lock(1);
+
     BEGIN
     -- Select the IDs of the valid and invalid records
         SELECT array_agg(rs.id) INTO staging_valid_ids
@@ -899,8 +900,10 @@ BEGIN
             SELECT 1
             FROM sources s
             WHERE s.uuid = rs.sourceuuid
-        ) AND (rs.value IS NOT NULL OR rs.altvalue IS NOT NULL) AND rs.timestamp IS NOT NULL AND rs.sourceuuid IS NOT NULL;
+        ) AND (rs.value IS NOT NULL OR rs.altvalue IS NOT NULL)
+          AND rs.timestamp IS NOT NULL AND rs.sourceuuid IS NOT NULL;
 
+        -- Identify invalid (orphaned) records
         SELECT array_agg(id) INTO staging_invalid_ids
         FROM recordings_staging rs
         WHERE NOT EXISTS (
@@ -910,37 +913,42 @@ BEGIN
         );
 
         -- Insert matching data into recordings table
-        INSERT INTO recordings (timestamp, value, altvalue, lat, lon, alt, geohash, projectid, sourceid, meta)
-        SELECT rs.timestamp, rs.value, rs.altvalue, rs.lat, rs.lon, rs.alt, rs.geohash, s.projectid, s.id, rs.meta
+        INSERT INTO recordings (
+            timestamp, value, altvalue, lat, lon, alt,
+            geohash, projectid, sourceid, meta
+        )
+        SELECT
+            rs.timestamp, rs.value, rs.altvalue, rs.lat, rs.lon, rs.alt,
+            rs.geohash, s.projectid, s.id, rs.meta
         FROM recordings_staging rs
         JOIN sources s ON rs.sourceuuid = s.uuid
         WHERE rs.id = ANY(staging_valid_ids)
         ON CONFLICT (timestamp, projectid, sourceid) DO NOTHING;
 
         -- Insert non-matching data into _recordings_orphaned table
-        INSERT INTO _recordings_orphaned (timestamp, value, altvalue, lat, lon, alt, geohash, sourceuuid, meta)
-        SELECT rs.timestamp, rs.value, rs.altvalue, rs.lat, rs.lon, rs.alt, rs.geohash, rs.sourceuuid, rs.meta
+        INSERT INTO _recordings_orphaned (
+            timestamp, value, altvalue, lat, lon, alt,
+            geohash, sourceuuid, meta
+        )
+        SELECT
+            rs.timestamp, rs.value, rs.altvalue, rs.lat, rs.lon, rs.alt,
+            rs.geohash, rs.sourceuuid, rs.meta
         FROM recordings_staging rs
         WHERE rs.id = ANY(staging_invalid_ids);
 
         -- Delete the processed records from the staging table
         DELETE FROM recordings_staging
         WHERE id = ANY(staging_valid_ids) OR id = ANY(staging_invalid_ids);
-
     EXCEPTION
         WHEN foreign_key_violation THEN
-            ROLLBACK;
             RAISE WARNING 'Foreign key violation: %', SQLERRM;
         WHEN invalid_table_definition THEN
-            ROLLBACK;
             RAISE WARNING 'Invalid table definition: %', SQLERRM;
         WHEN OTHERS THEN
-            ROLLBACK;
             RAISE WARNING 'Error: %', SQLERRM;
     END;
     -- Clean up lock file
     PERFORM pg_advisory_unlock(1);
-    RETURN;
 END;
 $$ LANGUAGE plpgsql;
 
