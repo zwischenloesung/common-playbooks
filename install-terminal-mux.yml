@@ -7,7 +7,7 @@
 #* details.
 #*  No arguments are mandatory.
 
-- hosts: host.KVM, host.Proxmox, host.Virtual
+- hosts: host.KVM, host.Proxmox, host.Virtual, app.termux
   become: True
   roles:
     - inofix.yapkg
