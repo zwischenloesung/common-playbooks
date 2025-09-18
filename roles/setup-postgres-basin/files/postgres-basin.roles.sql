@@ -16,31 +16,31 @@ BEGIN
         CREATE ROLE main_admin;
     END IF;
     -- omni project - roles with access to all projects
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'main_admin') THEN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'omni_admin') THEN
         -- projects admin role with lots of privledges
         CREATE ROLE omni_admin;
     END IF;
---    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'main_admin') THEN
+--    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'omni_reader') THEN
         -- role to read most information
-        --CREATE ROLE omni_reader;
+--        CREATE ROLE omni_reader;
 --    END IF;
---    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'main_admin') THEN
+--    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'omni_creator') THEN
         -- role to also add information
 --        CREATE ROLE omni_creator;
 --    END IF;
---    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'main_admin') THEN
+--    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'omni_editor') THEN
         -- role to edit existing information
 --        CREATE ROLE omni_editor;
 --    END IF;
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'main_admin') THEN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'omni_supplier') THEN
         -- role to only add recordings to the staging area
         CREATE ROLE omni_supplier;
     END IF;
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'main_admin') THEN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'omni_consumer') THEN
         -- role to read by views
         CREATE ROLE omni_consumer;
     END IF;
-END$$;
+END $$;
 
 -- revoke permissions
 REVOKE ALL ON SCHEMA public FROM
