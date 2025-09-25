@@ -58,7 +58,7 @@
   become: yes
   become_user: "{{ postgresql_user }}"
 
-- name: "Insert an entry for every user:address mapping."
+- name: "Insert an entry for every user:address mapping"
   ansible.builtin.blockinfile:
     path: "{{ pg_hba_path }}" 
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.name }} #"
@@ -80,10 +80,14 @@
     group: '{{ postgresql_group }}'
   when: >
     'app.postgresql.pg_cron' in group_names
+  register: pg_cron_rendered_template
 
 - name: "Restart PostgreSQL"
   ansible.builtin.command: >
     systemctl restart postgresql
+  when: >
+    'app.postgresql.pg_cron' in group_names and
+    pg_cron_rendered_template is changed
 
 - name: "Install the extentions needed"
   ansible.builtin.command: >
