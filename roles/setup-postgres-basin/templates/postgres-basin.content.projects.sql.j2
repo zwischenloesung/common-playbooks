@@ -38,7 +38,7 @@ BEGIN
 {% for st in item.sourcetypes %}
 
     PERFORM perform_insert_sourcetypes(
-      $name${{ st.name }}$name$,
+        $name${{ st.name }}$name$,
 {% if st.uuid is defined and st.uuid|length > 0 %}
         $uuid${{ st.uuid }}$uuid$,
 {% else %}
