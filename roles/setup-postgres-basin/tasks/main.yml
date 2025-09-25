@@ -3,15 +3,24 @@
 - name: "For every future user, add new credentials to the store"
   ansible.builtin.include_role:
     name: add-credentials-to-store
-  loop: "{{ db_users }}"
-  loop_control:
-    loop_var: item
   vars:
     target_file: ''
     credentials_key: "unused"
     credentials_name: "{{ item.credentials_name }}"
     credentials_user: "{{ item.name }}"
     password_chars: "{{ item.password_chars | d(default_password_chars, true) }}"
+  loop: "{{ db_users }}"
+
+- name: "Create a directory for Grafana example dashboards"
+  ansible.builtin.file:
+    path: "{% if i.type == 'directory' %}{{ i.dest }}{% else %}{{ i.dest | dirname }}{% endif %}"
+    state: directory
+    mode: "{{ i.mode }}"
+  vars:
+    i: "{{ item.value }}"
+  loop: "{{ templates | dict2items }}"
+  loop_control:
+    label: "{{ item.value.dest }}"
 
 - name: "Get the db schema files in place"
   ansible.builtin.copy:
@@ -21,6 +30,8 @@
     group: "{{ postgresql_group }}"
     mode: "0640"
   loop: "{{ schema_files.values() | list }}"
+  loop_control:
+    label: "{{ item }}"
 
 - name: "Add the projects with their content"
   ansible.builtin.template:
@@ -29,6 +40,16 @@
     mode: "0640"
     owner: '{{ postgresql_user }}'
     group: '{{ postgresql_group }}'
+
+- name: "Render one example Grafana dashboard JSON per project"
+  ansible.builtin.template:
+    src: "{{ templates.grafana.src }}"
+    dest: "{{ templates.grafana.dest }}/{{ project.name | lower | regex_replace('[^a-z0-9]+', '_') }}_dashboard.json"
+    mode: '0644'
+  loop: "{{ service_basin_projects }}"
+  loop_control:
+    loop_var: project
+    label: "{{ project.name }}"
 
 - name: "Create app database"
   community.postgresql.postgresql_db:
