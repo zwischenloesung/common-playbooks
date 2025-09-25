@@ -1,0 +1,51 @@
+{
+  "id": null,
+  "uid": "{{ project.uuid }}",
+  "title": "{{ project.name | default('Global') }} Project Dashboard",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "tags": ["autogen", "{{ project.name | lower | replace(' ', '_') }}"],
+  "panels": [
+    {% for source in project.sources %}
+    {
+      "type": "timeseries",
+      "title": "{{ source.name }}",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aeygllgq7zapse"
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "rawSql": "SELECT timestamp AS time, value FROM recordings WHERE sourceid = (SELECT id FROM sources WHERE uuid = '{{ source.uuid }}') AND $__timeFilter(timestamp) ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": {{ loop.index0 % 2 * 12 }},
+        "y": {{ loop.index0 // 2 * 8 }}
+      }
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "editable": true,
+  "gnetId": null,
+  "dashboard": {}
+}
+
