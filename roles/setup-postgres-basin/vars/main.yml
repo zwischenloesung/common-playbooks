@@ -17,12 +17,21 @@ schema_files:
   version: "postgres-basin.version.sql"
 schema_files_auto_enable: "{{ app__postgresql__auto_schema_enabled | d(default_postgresql_auto_schema_enabled, True) }}"
 templates:
+  grafana:
+    src: "grafana.project.dashboards.json.j2"
+    dest: "{{ schema_files_path }}/grafana.d"
+    type: "directory"
+    mode: "0755"
   projects:
     src: "postgres-basin.content.projects.sql.j2"
     dest: "{{ schema_files_path }}/postgres-basin.content.projects.sql"
+    type: "file"
+    mode: "0755"
   pg_cron:
     src: "pg_cron.conf.j2"
     dest: "{{ app__postgresql__pg_cron__config | d(g_postgresql_config_path ~ default_postgresql_cron_config_basename, true) }}"
+    type: "file"
+    mode: "0755"
 pg_hba_path: "{{ app__postgresql__hba | d(g_postgresql_config_path ~ default_postgresql_cron_config_basename, true) }}"
 db_projects: "{{ service_basin_projects | d(default_db_projects, true) }}"
 
