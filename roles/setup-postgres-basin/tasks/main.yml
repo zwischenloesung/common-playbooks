@@ -89,7 +89,7 @@
     'app.postgresql.pg_cron' in group_names and
     pg_cron_rendered_template is changed
 
-- name: "Install the extentions needed"
+- name: "Install the extensions needed"
   ansible.builtin.command: >
     psql -d {{ db_name }} -f {{ schema_files_path ~ "/" ~ schema_files.extensions }}
   become: yes
