@@ -191,9 +191,9 @@ CREATE TABLE IF NOT EXISTS shadow_sourcetypes (
     realmname TEXT DEFAULT NULL, -- Lifebase service
     realmuuid UUID DEFAULT NULL, -- Lifebase service
     projectid INTEGER REFERENCES projects(id) DEFAULT NULL,
-    contentencoding VARCHAR(32) DEFAULT NULL,
-    contenttype VARCHAR(32) DEFAULT NULL,
-    contentrdfxtypes TEXT DEFAULT NULL,
+    contentencoding VARCHAR(32) DEFAULT NULL, -- in case complex values are stored via altvalue (JSONB)
+    contenttype VARCHAR(32) DEFAULT NULL, -- to denote the value/altvalue type (default value:float)
+    contentrdfxtypes TEXT DEFAULT NULL, -- RDF references
     unit VARCHAR(16) DEFAULT NULL, --
     unitencoding VARCHAR(16) DEFAULT NULL,
     tolerance INTEGER DEFAULT NULL,
