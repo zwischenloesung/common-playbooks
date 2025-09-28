@@ -1,13 +1,16 @@
 ---
 db_users: "{{ service__basin__db_users | d(default__db_users, true) }}"
 db_name: "{{ service__basin__db_name | d(default_db_name) }}"
+db_projects: "{{ service_basin_projects | d(default_db_projects, true) }}"
 postgresql_user: "{{ app__postgresql__user | d(default_postgresql_user) }}"
 postgresql_group: "{{ app__postgresql__group | d(default_postgresql_group) }}"
 postgresql_version: "{{ app__postgresql__version | d(default_postgresql_version) }}"
 g_postgresql_config_path: "{{ default_postgresql_config_path ~ '/' ~ postgresql_version ~ '/main/' }}"
+pg_hba_path: "{{ app__postgresql__hba | d(g_postgresql_config_path ~ default_postgresql_hba_basename, true) }}"
 schema_files_path: "{{ service__basin__schema_files_path | d(default_schema_files_path) }}"
 schema_files:
   roles: "postgres-basin.roles.sql"
+  extension_cron: "postgres-basin.extensions.cron.sql"
   extensions: "postgres-basin.extensions.sql"
   tables: "postgres-basin.tables.sql"
   views: "postgres-basin.views.sql"
@@ -32,6 +35,4 @@ templates:
     dest: "{{ app__postgresql__pg_cron__config | d(g_postgresql_config_path ~ default_postgresql_cron_config_basename, true) }}"
     type: "file"
     mode: "0755"
-pg_hba_path: "{{ app__postgresql__hba | d(g_postgresql_config_path ~ default_postgresql_cron_config_basename, true) }}"
-db_projects: "{{ service_basin_projects | d(default_db_projects, true) }}"
 

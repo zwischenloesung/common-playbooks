@@ -21,7 +21,8 @@ default_postgresql_group: 'postgres'
 default_schema_files_path: "/var/lib/postgresql/basin_sql/"
 default_postgresql_version: "15"
 default_postgresql_config_path: "/etc/postgresql/"
-default_postgresql_cron_config_basename: "pg_cron.conf"
+default_postgresql_cron_config_basename: "conf.d/pg_cron.conf"
+default_postgresql_hba_config_basename: "pg_hba.conf"
 default_postgresql_auto_schema_enabled:
   - name: 'roles'
     enabled: False

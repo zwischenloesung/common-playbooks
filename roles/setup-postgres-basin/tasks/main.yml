@@ -51,7 +51,7 @@
     loop_var: project
     label: "{{ project.name }}"
 
-- name: "Create app database"
+- name: "Create the app database"
   community.postgresql.postgresql_db:
     state: present
     name: "{{ db_name }}"
@@ -78,8 +78,7 @@
     mode: "0640"
     owner: '{{ postgresql_user }}'
     group: '{{ postgresql_group }}'
-  when: >
-    'app.postgresql.pg_cron' in group_names
+  when: 'app.postgresql.pg_cron' in group_names
   register: pg_cron_rendered_template
 
 - name: "Restart PostgreSQL"
@@ -88,6 +87,13 @@
   when: >
     'app.postgresql.pg_cron' in group_names and
     pg_cron_rendered_template is changed
+
+- name: "Install the cron extension"
+  ansible.builtin.command: >
+    psql -d {{ db_name }} -f {{ schema_files_path ~ "/" ~ schema_files.extension_cron }}
+  become: yes
+  become_user: "{{ postgresql_user }}"
+  when: 'app.postgresql.pg_cron' in group_names
 
 - name: "Install the extensions needed"
   ansible.builtin.command: >
