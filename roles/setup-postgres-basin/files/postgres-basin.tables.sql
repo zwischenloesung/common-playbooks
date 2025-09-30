@@ -328,3 +328,17 @@ CREATE TABLE IF NOT EXISTS _recordings_orphaned (
     PRIMARY KEY(id)
 );
 
+-- log critical events and exceptions here for external monitoring
+CREATE TABLE IF NOT EXISTS _critical_monitor_log (
+    id SERIAL PRIMARY KEY,
+    ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+    subsystem TEXT NOT NULL,           -- e.g. 'reset_staging_serial', 'cron', etc.
+    context TEXT DEFAULT NULL,         -- additional info: function args, table name, etc.
+    severity TEXT NOT NULL CHECK (severity IN ('INFO', 'WARNING', 'ERROR', 'CRITICAL')),
+    message TEXT NOT NULL              -- human-readable message or error description
+);
+
+-- Optional: index for fast filtering by time/severity
+CREATE INDEX IF NOT EXISTS _critical_monitor_log_ts_idx ON _critical_monitor_log (ts DESC);
+CREATE INDEX IF NOT EXISTS _critical_monitor_log_severity_idx ON _critical_monitor_log (severity);
+

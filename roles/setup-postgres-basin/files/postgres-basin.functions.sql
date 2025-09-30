@@ -143,6 +143,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 CREATE OR REPLACE FUNCTION perform_insert_contacts(
     in_name TEXT,
     in_uri TEXT,
@@ -207,6 +208,7 @@ BEGIN
     RETURN contact_id;
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION perform_insert_users(
     in_name TEXT,
@@ -284,6 +286,7 @@ BEGIN
     RETURN user_id;
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION perform_insert_roles(
     in_name TEXT,
@@ -367,6 +370,7 @@ BEGIN
     RETURN role_id;
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION perform_insert_sourcetypes(
     in_name TEXT,
@@ -517,6 +521,7 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION perform_insert_sources(
     in_name TEXT,
@@ -675,6 +680,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- Create some functions to check for anchor/shadow coherence
 -- 1. return a table with the id-version pairs missing (hopefully empty)
 CREATE OR REPLACE FUNCTION check_shadow_differences(anchor_table TEXT, shadow_table TEXT)
@@ -709,6 +715,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- 2. verify that the table from above really is empty..
 CREATE OR REPLACE FUNCTION shadow_is_consistent(anchor_table TEXT, shadow_table TEXT)
 RETURNS BOOLEAN AS $$
@@ -724,48 +731,57 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- 3. complain if the above two tests fail for any of our table pairs.
 CREATE OR REPLACE FUNCTION enforce_shadow_consistency()
 RETURNS VOID AS $$
 BEGIN
     -- Example: Projects
     IF NOT shadow_is_consistent('projects', 'shadow_projects') THEN
+        PERFORM log_critical_event('enforce_shadow_consistency', 'ERROR', 'Shadow inconsistency detected at "projects"');
         RAISE EXCEPTION 'Shadow inconsistency detected in table "projects"';
     END IF;
 
     -- Example: Persons
     IF NOT shadow_is_consistent('persons', 'shadow_persons') THEN
+        PERFORM log_critical_event('enforce_shadow_consistency', 'ERROR', 'Shadow inconsistency detected at "persons"');
         RAISE EXCEPTION 'Shadow inconsistency detected in table "persons"';
     END IF;
 
     -- Example: Contacts
     IF NOT shadow_is_consistent('contacts', 'shadow_contacts') THEN
+        PERFORM log_critical_event('enforce_shadow_consistency', 'ERROR', 'Shadow inconsistency detected at "contacts"');
         RAISE EXCEPTION 'Shadow inconsistency detected in table "contacts"';
     END IF;
 
     -- Example: Users
     IF NOT shadow_is_consistent('users', 'shadow_users') THEN
+        PERFORM log_critical_event('enforce_shadow_consistency', 'ERROR', 'Shadow inconsistency detected at "users"');
         RAISE EXCEPTION 'Shadow inconsistency detected in table "users"';
     END IF;
 
     -- Example: Roles
     IF NOT shadow_is_consistent('roles', 'shadow_roles') THEN
+        PERFORM log_critical_event('enforce_shadow_consistency', 'ERROR', 'Shadow inconsistency detected at "roles"');
         RAISE EXCEPTION 'Shadow inconsistency detected in table "roles"';
     END IF;
 
     -- Example: Sourcetypes
     IF NOT shadow_is_consistent('sourcetypes', 'shadow_sourcetypes') THEN
+        PERFORM log_critical_event('enforce_shadow_consistency', 'ERROR', 'Shadow inconsistency detected at "sourcetypes"');
         RAISE EXCEPTION 'Shadow inconsistency detected in table "sourcetypes"';
     END IF;
 
     -- Example: Sources
     IF NOT shadow_is_consistent('sources', 'shadow_sources') THEN
+        PERFORM log_critical_event('enforce_shadow_consistency', 'ERROR', 'Shadow inconsistency detected at "sources"');
         RAISE EXCEPTION 'Shadow inconsistency detected in table "sources"';
     END IF;
 
     RAISE NOTICE 'Shadow consistency verified for all checked tables.';
 END;
 $$ LANGUAGE plpgsql;
+
 
 -- 4. now, let's call it from pg_cron..?
 
@@ -790,6 +806,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE STRICT;
 
+
 -- used once to clean up..
 -- UPDATE shadow_sources
 -- SET path = (
@@ -798,6 +815,7 @@ $$ LANGUAGE plpgsql IMMUTABLE STRICT;
 --    WHERE parent.id = sources.parentid
 -- )
 -- WHERE parentid IS NOT NULL;
+
 
 CREATE OR REPLACE FUNCTION update_ltree_path()
 RETURNS TRIGGER AS $$
@@ -833,6 +851,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- Create a function to manage partitions and subpartitions
 CREATE OR REPLACE FUNCTION manage_recordings_partitions()
 RETURNS void AS $$
@@ -846,29 +865,34 @@ BEGIN
     current_year := EXTRACT(YEAR FROM CURRENT_DATE);
     next_year := current_year + 1;
 
-    -- Loop through all project IDs
-    FOR project_id IN SELECT DISTINCT id FROM projects
-    LOOP
-        -- Create the partition for the projectid if it does not exixt
-        partition_name := 'recordings_projectid' || project_id;
-        IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = partition_name) THEN
-            EXECUTE 'CREATE TABLE ' || partition_name || ' PARTITION OF recordings FOR VALUES IN (' || project_id || ') PARTITION BY RANGE (timestamp)';
-        END IF;
+    BEGIN
+        -- Loop through all project IDs
+        FOR project_id IN SELECT DISTINCT id FROM projects
+        LOOP
+            -- Create the partition for the projectid if it does not exixt
+            partition_name := 'recordings_projectid' || project_id;
+            IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = partition_name) THEN
+                EXECUTE 'CREATE TABLE ' || partition_name || ' PARTITION OF recordings FOR VALUES IN (' || project_id || ') PARTITION BY RANGE (timestamp)';
+            END IF;
 
-        -- Create the sub-partition for the current year if it does not exist
-        subpartition_name := 'recordings_projectid' || project_id || '_year' || TO_CHAR(current_year, 'FM0000');
-        IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = subpartition_name) THEN
-            EXECUTE 'CREATE TABLE ' || subpartition_name || ' PARTITION OF ' || partition_name || ' FOR VALUES FROM (''' || TO_CHAR(current_year, 'FM0000') || '-01-01'') TO (''' || TO_CHAR(current_year + 1, 'FM0000') || '-01-01'')';
-        END IF;
+            -- Create the sub-partition for the current year if it does not exist
+            subpartition_name := 'recordings_projectid' || project_id || '_year' || TO_CHAR(current_year, 'FM0000');
+            IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = subpartition_name) THEN
+                EXECUTE 'CREATE TABLE ' || subpartition_name || ' PARTITION OF ' || partition_name || ' FOR VALUES FROM (''' || TO_CHAR(current_year, 'FM0000') || '-01-01'') TO (''' || TO_CHAR(current_year + 1, 'FM0000') || '-01-01'')';
+            END IF;
 
-        -- Create the sub-partition for the next year if it does not exist
-        subpartition_name := 'recordings_projectid' || project_id || '_year' || TO_CHAR(next_year, 'FM0000');
-        IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = subpartition_name) THEN
-            EXECUTE 'CREATE TABLE ' || subpartition_name || ' PARTITION OF ' || partition_name || ' FOR VALUES FROM (''' || TO_CHAR(next_year, 'FM0000') || '-01-01'') TO (''' || TO_CHAR(next_year + 1, 'FM0000') || '-01-01'')';
-        END IF;
-    END LOOP;
+            -- Create the sub-partition for the next year if it does not exist
+            subpartition_name := 'recordings_projectid' || project_id || '_year' || TO_CHAR(next_year, 'FM0000');
+            IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = subpartition_name) THEN
+                EXECUTE 'CREATE TABLE ' || subpartition_name || ' PARTITION OF ' || partition_name || ' FOR VALUES FROM (''' || TO_CHAR(next_year, 'FM0000') || '-01-01'') TO (''' || TO_CHAR(next_year + 1, 'FM0000') || '-01-01'')';
+            END IF;
+        END LOOP;
+    EXCEPTION WHEN OTHERS THEN
+        PERFORM log_critical_event('manage_recordings_partitions', 'ERROR', 'Partition management failed', SQLERRM);
+    END;
 END;
 $$ LANGUAGE plpgsql;
+
 
 -- new projects create recording partitions
 CREATE OR REPLACE FUNCTION insert_project_post_process()
@@ -879,6 +903,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- processing staged recordings and clean up or warn
 CREATE OR REPLACE FUNCTION process_staged_recordings()
 RETURNS VOID AS $$
@@ -888,6 +913,8 @@ DECLARE
 BEGIN
     -- Warn on 'many' staging table entries (queue).
     IF (SELECT COUNT(*) FROM recordings_staging) > 10000 THEN
+        -- Send a WARNING to monitoring and raise WARNING locally..
+        PERFORM log_critical_event('process_staged_recordings', 'WARNING', 'Too many entries in staging, please react, if it happens often...');
         RAISE WARNING 'Too many entries in staging table, consider increasing interval or optimizing job';
     END IF;
     -- Create a lock file to block new processes, resp. quit if another process is running..
@@ -941,11 +968,15 @@ BEGIN
         DELETE FROM recordings_staging
         WHERE id = ANY(staging_valid_ids) OR id = ANY(staging_invalid_ids);
     EXCEPTION
+        -- These exceptions are considered somewhat bad, sending an ERROR to monitoring..
         WHEN foreign_key_violation THEN
+            PERFORM log_critical_event('process_staged_recordings', 'ERROR', 'Foreign key violation', SQLERRM);
             RAISE WARNING 'Foreign key violation: %', SQLERRM;
         WHEN invalid_table_definition THEN
+            PERFORM log_critical_event('process_staged_recordings', 'ERROR', 'Invalid table definition', SQLERRM);
             RAISE WARNING 'Invalid table definition: %', SQLERRM;
         WHEN OTHERS THEN
+            PERFORM log_critical_event('process_staged_recordings', 'ERROR', 'Unhandled Exception occured', SQLERRM);
             RAISE WARNING 'Error: %', SQLERRM;
     END;
     -- Clean up lock file
@@ -954,4 +985,74 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+-- Make sure the recordings_staging table newer grows out of INTEGER IDs
+CREATE OR REPLACE FUNCTION reset_staging_serial()
+RETURNS VOID AS $$
+DECLARE
+    current_max_id INTEGER;
+BEGIN
+    -- Get current max id
+    SELECT COALESCE(MAX(id), 0) INTO current_max_id FROM recordings_staging;
+
+    -- Check if current max id exceeds 1 billion
+    IF current_max_id < 2000000000 THEN
+        RAISE NOTICE 'Not resetting: max id is still below 2B (currently: %)', current_max_id;
+        RETURN;
+    END IF;
+
+    BEGIN
+        -- Reset the sequence to 1 ('false' means to use 1 on next insert)
+        PERFORM setval(pg_get_serial_sequence('recordings_staging', 'id'), 1, false);
+        RAISE NOTICE 'Staging serial reset to 1.';
+    EXCEPTION WHEN OTHERS THEN
+        PERFORM log_critical_event(
+            'reset_staging_serial',
+            'ERROR',
+            'Failed to reset sequence recordings_staging.id',
+            format('current_max_id=%s, sqlerrm=%s', current_max_id, SQLERRM)
+        );
+        RAISE EXCEPTION 'Reset failed: %', SQLERRM;
+    END;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Log job runs.. just for reference purposes
+-- SELECT * FROM cron.job_run_details
+-- WHERE jobid = (
+--   SELECT jobid FROM cron.job WHERE jobname = 'reset_staging_serial'
+-- )
+-- ORDER BY end_time DESC
+-- LIMIT 10;
+
+
+-- Logging policy rationale:
+-- 1. Warnings (e.g. too many entries in staging) are logged as 'WARNING' and raised as RAISE WARNING.
+--    These are recoverable and may resolve without human intervention.
+--
+-- 2. Data integrity issues (e.g. foreign key violations or invalid schema) are logged as 'ERROR' 
+--    but only raised as RAISE WARNING to avoid crashing cron or background jobs.
+--    This dual-level alerting ensures human attention without system interruption.
+--
+-- NOTE: We intentionally *do not* use 'CRITICAL' unless the system becomes unsafe or corrupted.
+--       Lazy*ehrr efficient sysadmins are expected to monitor WARNING-level noise and escalate
+--       mentally. :)
+
+-- Helper to insert custom log entries
+CREATE OR REPLACE FUNCTION log_critical_event(
+    in_subsystem TEXT,
+    in_severity TEXT,
+    in_message TEXT,
+    in_context TEXT DEFAULT NULL
+) RETURNS VOID AS $$
+BEGIN
+    -- Validate severity (optional double-check, already in CHECK constraint)
+    IF in_severity NOT IN ('INFO', 'WARNING', 'ERROR', 'CRITICAL') THEN
+        RAISE EXCEPTION 'Invalid severity: %', in_severity;
+    END IF;
+
+    -- Insert into log table
+    INSERT INTO _critical_monitor_log (ts, subsystem, severity, message, context)
+    VALUES (NOW(), in_subsystem, in_severity, in_message, in_context);
+END;
+$$ LANGUAGE plpgsql;
 

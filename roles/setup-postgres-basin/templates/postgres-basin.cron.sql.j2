@@ -1,0 +1,31 @@
+
+-- enable pg_cron on unix socket to (NOTE: unset hostname on all jobs so far to use unix socket)
+
+-- - periodically process staged data
+
+{% for item in cron_job_list %}
+DO $$
+DECLARE
+    v_jobid INTEGER;
+BEGIN
+    -- Delete existing job with same name (if any)
+    PERFORM cron.unschedule('{{ item.name | replace("'", "''") }}')
+    WHERE EXISTS (
+        SELECT 1 FROM cron.job WHERE jobname = '{{ item.name | replace("'", "''") }}'
+    );
+
+    -- Schedule the job and store the returned jobid
+    SELECT cron.schedule_in_database(
+        '{{ item.name | replace("'", "''") }}',
+        '{{ item.schedule }}',
+        '{{ item.task | replace("'", "''") }}',
+        '{{ item.db }}'
+    ) INTO v_jobid;
+
+    -- Update nodename to force use of UNIX socket
+    UPDATE cron.job
+    SET nodename = '{{ item.host }}', nodeport = {{ item.port }}
+    WHERE jobid = v_jobid;
+END $$;
+{% endfor %}
+

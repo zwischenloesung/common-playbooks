@@ -1,13 +1,15 @@
 ---
 db_users: "{{ service__basin__db_users | d(default__db_users, true) }}"
 db_name: "{{ service__basin__db_name | d(default_db_name) }}"
+db_cron_name: "{{ service__basin__db_cron_name | d(default_db_cron_name) }}"
 db_projects: "{{ service_basin_projects | d(default_db_projects, true) }}"
 postgresql_user: "{{ app__postgresql__user | d(default_postgresql_user) }}"
 postgresql_group: "{{ app__postgresql__group | d(default_postgresql_group) }}"
 postgresql_version: "{{ app__postgresql__version | d(default_postgresql_version) }}"
 g_postgresql_config_path: "{{ default_postgresql_config_path ~ '/' ~ postgresql_version ~ '/main/' }}"
-pg_hba_path: "{{ app__postgresql__hba | d(g_postgresql_config_path ~ default_postgresql_hba_basename, true) }}"
+pg_hba_path: "{{ app__postgresql__hba | d(g_postgresql_config_path ~ default_postgresql_hba_config_basename, true) }}"
 schema_files_path: "{{ service__basin__schema_files_path | d(default_schema_files_path) }}"
+cron_job_list: "{{ service__basin__cron_job_list | d(default_cron_job_list) }}"
 schema_files:
   roles: "postgres-basin.roles.sql"
   extension_cron: "postgres-basin.extensions.cron.sql"
@@ -16,7 +18,6 @@ schema_files:
   views: "postgres-basin.views.sql"
   functions: "postgres-basin.functions.sql"
   triggers: "postgres-basin.triggers.sql"
-  cron: "postgres-basin.cron.sql"
   version: "postgres-basin.version.sql"
 schema_files_auto_enable: "{{ app__postgresql__auto_schema_enabled | d(default_postgresql_auto_schema_enabled, True) }}"
 templates:
@@ -35,4 +36,8 @@ templates:
     dest: "{{ app__postgresql__pg_cron__config | d(g_postgresql_config_path ~ default_postgresql_cron_config_basename, true) }}"
     type: "file"
     mode: "0755"
-
+  cron_jobs:
+    src: "postgres-basin.cron.sql.j2"
+    dest: "{{ schema_files_path }}/postgres-basin.cron.sql"
+    type: "file"
+    mode: "0755"

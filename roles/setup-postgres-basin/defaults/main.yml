@@ -7,6 +7,7 @@ default_user_comment: 'DB User'
 default_password_chars: "ascii,digits,.-_~+="
 default_password_hash: "scram-sha-256"
 default_db_name: 'test'
+default_db_cron_name: 'test_cron'
 default_db_projects:
   foobar:
     name: 'Foobar'
@@ -42,4 +43,22 @@ default_postgresql_auto_schema_enabled:
     enabled: False
   - name: 'content'
     enabled: False
-
+default_cron_job_list:
+  - name: 'control data ingress'
+    schedule: '* * * * *'
+    task: 'SELECT process_staged_recordings();'
+    db: '{{ db_name }}'
+    host: '/var/run/postgresql'
+    port: 5432
+  - name: 'partition timeseries'
+    schedule: '3 3 28-31 * *'
+    task: 'SELECT manage_recordings_partitions();'
+    db: '{{ db_name }}'
+    host: '/var/run/postgresql'
+    port: 5432
+  - name: 'sync anchor tables'
+    schedule: '33 3 * * *'
+    task: 'SELECT enforce_shadow_consistency();'
+    db: '{{ db_name }}'
+    host: '/var/run/postgresql'
+    port: 5432
