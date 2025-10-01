@@ -1029,7 +1029,7 @@ $$ LANGUAGE plpgsql;
 -- 1. Warnings (e.g. too many entries in staging) are logged as 'WARNING' and raised as RAISE WARNING.
 --    These are recoverable and may resolve without human intervention.
 --
--- 2. Data integrity issues (e.g. foreign key violations or invalid schema) are logged as 'ERROR' 
+-- 2. Data integrity issues (e.g. foreign key violations or invalid schema) are logged as 'ERROR'
 --    but only raised as RAISE WARNING to avoid crashing cron or background jobs.
 --    This dual-level alerting ensures human attention without system interruption.
 --

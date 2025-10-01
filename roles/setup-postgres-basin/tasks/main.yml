@@ -57,6 +57,7 @@
     name: "{{ db_cron_name }}"
   become: yes
   become_user: "{{ postgresql_user }}"
+  register: db_cron_exists
 
 - name: "Create the app database"
   community.postgresql.postgresql_db:
@@ -64,6 +65,46 @@
     name: "{{ db_name }}"
   become: yes
   become_user: "{{ postgresql_user }}"
+  register: db_app_exists
+
+- name: "Get count of existing cron jobs (if cron db exists)"
+  community.postgresql.postgresql_query:
+    db: "{{ db_cron_name }}"
+    query: SELECT COUNT(*) AS cron_job_count FROM cron.job;
+  become: yes
+  become_user: "{{ postgresql_user }}"
+  when: db_cron_exists is defined and db_cron_exists.changed == false
+  register: cron_stats
+
+- name: "Collect schema stats from {{ db_name }} (if it exists)"
+  community.postgresql.postgresql_query:
+    db: "{{ db_name }}"
+    query: |
+      SELECT
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '_meta') AS has_meta,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'persons') AS has_persons,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_persons') AS has_shadow_persons,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'contacts') AS has_contacts,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_contacts') AS has_shadow_contacts,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'sourcetypes') AS has_sourcetypes,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_sourcetypes') AS has_shadow_sourcetypes,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'sources') AS has_sources,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_sources') AS has_shadow_sources,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'projects') AS has_projects,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_projects') AS has_shadow_projects,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'roles') AS has_roles,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_roles') AS has_shadow_roles,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'recordings') AS has_recordings,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'recordings_staging') AS has_staging,
+      (SELECT COUNT(*) FROM projects) AS project_count,
+      (SELECT COUNT(*) FROM sourcetypes) AS sourcetype_count,
+      (SELECT COUNT(*) FROM sources) AS source_count,
+      (SELECT COUNT(*) FROM pg_proc WHERE pronamespace::regnamespace::text = 'public') AS function_count,
+      (SELECT COUNT(*) FROM pg_trigger) AS trigger_count;
+  become: yes
+  become_user: "{{ postgresql_user }}"
+  when: db_app_exists is defined and db_app_exists.changed == false
+  register: schema_stats
 
 - name: "Insert an entry for every user:address mapping"
   ansible.builtin.blockinfile:
@@ -146,7 +187,7 @@
   when: >
     schema_files_auto_enable | selectattr('name', 'equalto', 'roles') | map(attribute='enabled') | first | d(false)
 
-- name: "Create the functionss"
+- name: "Create the functions"
   ansible.builtin.command: >
     psql -d {{ db_name }} -f {{ schema_files_path ~ "/" ~ schema_files.functions }}
   become: yes
@@ -217,7 +258,89 @@
   become: yes
   become_user: "{{ postgresql_user }}"
 
-#TODO projects template
-#TODO sourcetypes / sources
-#TODO create tables, triggers, functions, etc.
+- name: "(Again:) Get count of existing cron jobs (if cron db exists)"
+  community.postgresql.postgresql_query:
+    db: "{{ db_cron_name }}"
+    query: SELECT COUNT(*) AS cron_job_count FROM cron.job;
+  become: yes
+  become_user: "{{ postgresql_user }}"
+  when: >
+    'app.postgresql.pg_cron' in group_names
+  register: cron_again_stats
+
+- name: "(Again:) Collect schema stats from {{ db_name }} (if it exists)"
+  community.postgresql.postgresql_query:
+    db: "{{ db_name }}"
+    query: |
+      SELECT
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '_meta') AS has_meta,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'persons') AS has_persons,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_persons') AS has_shadow_persons,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'contacts') AS has_contacts,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_contacts') AS has_shadow_contacts,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'sourcetypes') AS has_sourcetypes,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_sourcetypes') AS has_shadow_sourcetypes,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'sources') AS has_sources,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_sources') AS has_shadow_sources,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'projects') AS has_projects,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_projects') AS has_shadow_projects,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'roles') AS has_roles,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shadow_roles') AS has_shadow_roles,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'recordings') AS has_recordings,
+      EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'recordings_staging') AS has_staging,
+      (SELECT COUNT(*) FROM projects) AS project_count,
+      (SELECT COUNT(*) FROM sourcetypes) AS sourcetype_count,
+      (SELECT COUNT(*) FROM sources) AS source_count,
+      (SELECT COUNT(*) FROM pg_proc WHERE pronamespace::regnamespace::text = 'public') AS function_count,
+      (SELECT COUNT(*) FROM pg_trigger) AS trigger_count;
+  become: yes
+  become_user: "{{ postgresql_user }}"
+  register: schema_again_stats
+
+- name: "SUMMARY: App database details"
+  debug:
+    msg: |
+      {% if db_app_exists.changed %}
+      "A new application database was created. Initial content:"
+      {% else %}
+      "Application database content summary:"
+      {% endif %}
+
+      "- item: Now (Before)"
+      {% for item in schema_again_stats.query_result[0] %}
+      - {{ item | replace('_', ' ') | title }} | {{ schema_stats.query_result[0][item] | default('–') }} | {{ schema_again_stats.query_result[0][item] | default('–') }}
+      {% endfor %}
+
+- name: "Prepare DB summary as structured object"
+  set_fact:
+    app_db_summary:
+      name: "{{ db_name }}"
+      description: >-
+        {% if db_app_exists.changed %}
+        A new application database was created.
+        with the following components: now(before).
+        {% else %}
+        The application database was updated
+        with the following components: now(before).
+        {% endif %}
+      components:
+        before: "{{ lookup('vars', 'schema_again_stats').query_result[0] }}"
+        now: "{{ lookup('vars', 'schema_stats').query_result[0] }}"
+
+- name: "SUMMARY: show app DB contents"
+  debug:
+    var: app_db_summary
+
+- name: "SUMMARY: show DB cron details"
+  debug:
+    msg: |
+      {% if db_cron_exists.changed %}
+      A new central database for cron tasks was added with {{ cron_again_stats.query_result[0].cron_job_count }} tasks.
+      {% else %}
+      Currently, there are {{ cron_again_stats.query_result[0].cron_job_count }} cron tasks (before: {{ cron_stats.query_result[0].cron_job_count }}).
+      {% endif %}
+  when: >
+    'app.postgresql.pg_cron' in group_names
+
+
 
