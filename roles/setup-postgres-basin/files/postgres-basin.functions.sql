@@ -573,8 +573,8 @@ BEGIN
     END IF;
 
     IF project_id IS NULL THEN
-        RAISE EXCEPTION 'Project for source "%" not found, UUID: "%"',
-            in_name, in_project_uuid;
+        RAISE EXCEPTION 'Project for source "%" ("%") not found, UUID: "%"',
+            in_name, in_uuid, in_project_uuid;
     END IF;
 
     -- Every source is expected to have a corresponding type entry
@@ -584,8 +584,8 @@ BEGIN
     LIMIT 1;
 
     IF sourcetype_id IS NULL THEN
-        RAISE EXCEPTION 'Sourcetype for source "%" not found, UUID: "%"',
-            in_name, in_sourcetype_uuid;
+        RAISE EXCEPTION 'Sourcetype for source "%" ("%") not found, UUID: "%"',
+            in_name, in_uuid, in_sourcetype_uuid;
     END IF;
 
     -- Try to link to an existing parent source first
@@ -596,8 +596,8 @@ BEGIN
         LIMIT 1;
 
         IF parent_source_id IS NULL THEN
-            RAISE EXCEPTION 'Parent for source "%" not found, UUID: "%"',
-                in_name, in_sources_uuid;
+            RAISE EXCEPTION 'Parent for source "%" ("%") not found, UUID: "%"',
+                in_name, in_uuid, in_parent_uuid;
         END IF;
     END IF;
 
